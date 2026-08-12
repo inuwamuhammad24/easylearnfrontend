@@ -1,4 +1,4 @@
-EasyLearn
+## EasyLearn
 Online Learning Platform
 
 EasyLearn is a web-based learning platform designed to connect learners with structured online courses and learning resources.
