@@ -1,148 +1,228 @@
-import React, { useContext, useEffect } from "react"
+import React, { useContext, useState } from "react"
 import { Link } from "react-router-dom"
 import DispatchContext from "../DispatchContext"
 import StateContext from "../StateContext"
-
-import Loading from "./Loading"
 
 function NavigationMenus() {
   const appState = useContext(StateContext)
   const appDispatch = useContext(DispatchContext)
 
-  function handleClick() {
-    const navlines = document.querySelectorAll(".mnav")
-    const navContainer = document.querySelector(".mobile-nav-menus")
-    navlines[0].classList.toggle("n1open")
-    navlines[1].classList.toggle("n2open")
-    navlines[2].classList.toggle("n3open")
-    navContainer.classList.toggle("openNav")
-  }
+  // React state handling for the mobile slide-out layout panel
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   function handleThemeChange() {
-    // let scheme = document.querySelector("html")
-    // if (scheme.style.colorScheme == "light") {
-    //   scheme.style.background = "#1b1b1b"
-    //   scheme.style.colorScheme = "dark"
-    // } else {
-    //   scheme.style.background = "#fff"
-    //   scheme.style.colorScheme = "light"
-    // }
     appDispatch({ type: "changeTheme" })
   }
 
   function handleSearchClick() {
     const searchContainer = document.querySelector(".searching-overlay")
-    searchContainer.style.display = "block"
-    searchContainer.style.animate = "550ms ease drop-search"
+    if (searchContainer) {
+      searchContainer.style.display = "block"
+    }
   }
 
   return (
     <>
-      <div className={appState.isDarkModeOn ? "header background-dark header-border-dark flex items-center justify-round px-6 top-0 shadow-sm border-b-black" : "header flex bg-white items-center justify-round px-6 top-0 shadow-sm border-b-[#f1f1f1]"}>
-        <div className="logo">
-          <div className="logo-img">
-            <Link to="/">{appState.isDarkModeOn ? <img src="https://res.cloudinary.com/dlbtbf6vy/image/upload/w_200/v1722723842/dan473tr0golzep6x3c_sjfgkr.svg" alt="Logo" /> : <img src="https://res.cloudinary.com/dlbtbf6vy/image/upload/c_crop,w_200,h_100,g_auto/v1691789500/EasyLearnLigthMode_cf3fuh.png" alt="logo" />}</Link>
-          </div>
-        </div>
-        {/* <!-- desktop navgation bar --> */}
-        <div className="nav-bar">
-          <div className="nav">
-            <ul>
-              <Link to="/">
-                <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}}>Home</li>
-              </Link>
-              <Link to="/courses">
-                <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}}>Courses</li>
-              </Link>
-              <a to="#">
-                <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}}>Practice</li>
-              </a>
-              <a to="#">
-                <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}}>About Us</li>
-              </a>
-              <a to="#">
-                <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}}>Contact Us</li>
-              </a>
-              <li onClick={handleSearchClick} style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}} className="search-icon">
-                <i className="fas fa-search"></i>
-              </li>
-              <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}} className="search-icon" onClick={handleThemeChange}>
-                {appState.isDarkModeOn ? <i style={{ fontSize: "25px" }}>&#9788;</i> : <i className="fa-solid fa-moon"></i>}
-              </li>
-            </ul>
+      {/* 1. Header Background Track */}
+      <header
+        className={`sticky top-0 left-0 right-0 z-50 w-full border-b backdrop-blur-md transition-colors duration-300 ${
+          appState.isDarkModeOn
+            ? "bg-slate-900/90 border-slate-800 text-slate-100"
+            : "bg-white/90 border-slate-100 text-slate-800"
+        }`}
+      >
+        {/* 2. Inner Container: Full horizontal layout strip tracking */}
+        <div className="w-full px-8 h-20 flex items-center justify-between">
+          {/* Text-Based Logo Setup (Mirrors the Footer Architecture perfectly) */}
+          <div className="flex items-center shrink-0">
+            <Link
+              to="/"
+              className="block select-none transition-transform active:scale-95"
+            >
+              <span
+                className={`font-black text-2xl tracking-tight ${appState.isDarkModeOn ? "text-white" : "text-slate-900"}`}
+              >
+                easy
+                <span className="text-blue-600 dark:text-blue-400">learn</span>
+              </span>
+            </Link>
           </div>
 
-          <div className="login">
-            <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : { color: "#1b1b1b" }} className="search-icon">
-              <i className="fas fa-search"></i>
-            </li>
-            <li style={appState.isDarkModeOn ? { color: "#f1f1f1" } : { color: "#1b1b1b" }} className="search-icon" onClick={handleThemeChange}>
-              {appState.isDarkModeOn ? <i style={{ fontSize: "25px", position: "relative", top: "-5px" }}>&#9788;</i> : <i class="fa-solid fa-moon"></i>}
-            </li>
-            <div className="mnavlogin">
+          {/* Expanded Desktop Links Wrapper */}
+          <nav className="hidden md:flex items-center gap-12 text-sm font-bold tracking-wide">
+            <Link
+              to="/"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+            >
+              Home
+            </Link>
+            <Link
+              to="/courses"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+            >
+              Courses
+            </Link>
+            <Link
+              to="/articles"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+            >
+              Articles
+            </Link>
+            <Link
+              to="/about"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+            >
+              About Us
+            </Link>
+
+            <a
+              href="#"
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+            >
+              Contact Us
+            </a>
+          </nav>
+
+          {/* Action Control Drawer Right Alignment block */}
+          <div className="flex items-center gap-6">
+            {/* Desktop Action Utilities */}
+            <div className="hidden md:flex items-center gap-4 text-slate-400 dark:text-slate-500">
+              <button
+                onClick={handleSearchClick}
+                className="p-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer"
+                aria-label="Search"
+              >
+                <i className="fas fa-search text-base"></i>
+              </button>
+              <button
+                onClick={handleThemeChange}
+                className="p-2 hover:text-blue-600 dark:hover:text-blue-400 text-xl transition-all duration-200 cursor-pointer"
+                aria-label="Toggle Theme"
+              >
+                {appState.isDarkModeOn ? (
+                  "☀️"
+                ) : (
+                  <i className="fa-solid fa-moon"></i>
+                )}
+              </button>
+            </div>
+
+            {/* Profile Sign-in Validation State links */}
+            <div className="flex items-center gap-4">
               {appState.isLogin ? (
-                <div className="profile-pic-container">
-                  <div>
-                    <img src="https://res.cloudinary.com/dlbtbf6vy/image/upload/v1668020901/user-icon-person-profile-sign-vector-avatar-user-icon-person-profile-sign-vector-avatar-illustration-124240309_lv7avr.jpg" alt="Profile" />
-                  </div>
+                <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <img
+                    src="https://share.google/h5ByfPno2U67NFksi"
+                    alt="User Avatar"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               ) : (
-                <Link to="/instructor/signup">
-                  <button>Join us</button>
+                <Link to="/user/signup" className="hidden sm:block">
+                  <button className="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-md shadow-blue-600/10 hover:bg-blue-700 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
+                    Sign up
+                  </button>
                 </Link>
               )}
 
-              {/* Three navigation lines for mobile phones */}
-              <div onClick={handleClick} className="mobile-menu">
-                <div style={appState.isDarkModeOn ? { background: "#f1f1f1" } : {}} className="n1 mnav"></div>
-                <div style={appState.isDarkModeOn ? { background: "#f1f1f1" } : {}} className="n2 mnav"></div>
-                <div style={appState.isDarkModeOn ? { background: "#f1f1f1" } : {}} className="n3 mnav"></div>
-              </div>
+              {/* Mobile Interaction Trigger icon */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="flex flex-col gap-1.5 p-2 md:hidden relative z-50 cursor-pointer"
+                aria-label="Toggle Menu"
+              >
+                <span
+                  className={`w-6 h-0.5 transition-all duration-300 ${appState.isDarkModeOn ? "bg-white" : "bg-slate-800"} ${isMobileMenuOpen ? "rotate-45 translate-y-2" : ""}`}
+                ></span>
+                <span
+                  className={`w-6 h-0.5 transition-all duration-300 ${appState.isDarkModeOn ? "bg-white" : "bg-slate-800"} ${isMobileMenuOpen ? "opacity-0" : ""}`}
+                ></span>
+                <span
+                  className={`w-6 h-0.5 transition-all duration-300 ${appState.isDarkModeOn ? "bg-white" : "bg-slate-800"} ${isMobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`}
+                ></span>
+              </button>
             </div>
           </div>
         </div>
+      </header>
 
-        <div className="mobile-nav-menus" style={appState.isDarkModeOn ? { borderRight: "2px solid #000" } : { background: "#fff", borderRight: "2px solid #ccc" }}>
-          <div className="nav-mobile">
-            <div className="sidebar-profile">
-              <div className="sidebar-profile-pic-container">
-                <img src="https://res.cloudinary.com/dlbtbf6vy/image/upload/v1668020901/user-icon-person-profile-sign-vector-avatar-user-icon-person-profile-sign-vector-avatar-illustration-124240309_lv7avr.jpg" alt="img" />
-              </div>
-              <div className="sidebar-profile-name">{appState.isLogin ? <h3>Inuwa Muh'd</h3> : <a href="/instructor/signup">Join Us</a>}</div>
+      {/* Side Mobile Menu Drawer */}
+      <div
+        className={`fixed inset-y-0 right-0 z-40 w-72 max-w-sm border-l shadow-2xl p-6 transition-transform duration-300 ease-in-out md:hidden flex flex-col justify-between ${
+          appState.isDarkModeOn
+            ? "bg-slate-900 border-slate-800 text-slate-200"
+            : "bg-white border-slate-200 text-slate-800"
+        } ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"}`}
+      >
+        <div className="space-y-8 pt-16">
+          <div className="flex items-center gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+            <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700">
+              <img
+                src="https://res.cloudinary.com/dlbtbf6vy/image/upload/v1668020901/user-icon-person-profile-sign-vector-avatar-user-icon-person-profile-sign-vector-avatar-illustration-124240309_lv7avr.jpg"
+                alt="Avatar"
+                className="w-full h-full object-cover"
+              />
             </div>
-            <ul className="first-ul">
-              <Link style={appState.isDarkModeOn ? {} : { color: "#1b1b1b" }} to="/">
-                <i className="fa-solid fa-house"></i>
-                <li>Home</li>
-              </Link>
-              <Link style={appState.isDarkModeOn ? {} : { color: "#1b1b1b" }} to="/courses">
-                <i className="fa-solid fa-graduation-cap"></i>
-                <li>Courses</li>
-              </Link>
-              <Link style={appState.isDarkModeOn ? {} : { color: "#1b1b1b" }} to="#">
-                <i className="fa-solid fa-book"></i>
-                <li>Practice</li>
-              </Link>
-              <Link style={appState.isDarkModeOn ? {} : { color: "#1b1b1b" }} to="#">
-                <i className="fa-solid fa-info"></i>
-                <li>About Us</li>
-              </Link>
-              <Link style={appState.isDarkModeOn ? {} : { color: "#1b1b1b" }} to="#">
-                <i className="fa-solid fa-headphones-simple"></i>
-                <li>Contact Us</li>
-              </Link>
-            </ul>
-            <ul>
-              <Link style={appState.isDarkModeOn ? {} : { color: "#1b1b1b" }} to="#">
-                <i class="fa-solid fa-gear"></i>
-                <li>Settings</li>
-              </Link>
-              <Link style={appState.isDarkModeOn ? {} : { color: "#1b1b1b" }} to="/login">
-                <i className="fa-solid fa-right-to-bracket"></i>
-                <li>Sign in</li>
-              </Link>
-            </ul>
+            <div>
+              {appState.isLogin ? (
+                <h3 className="font-bold text-slate-900 dark:text-white">
+                  Inuwa Muh'd
+                </h3>
+              ) : (
+                <Link
+                  to="/instructor/signup"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="font-bold text-blue-600 dark:text-blue-400"
+                >
+                  Join Us
+                </Link>
+              )}
+            </div>
           </div>
+
+          <nav className="flex flex-col gap-1 text-base font-bold">
+            {[
+              { path: "/", label: "Home", icon: "fa-house" },
+              { path: "/courses", label: "Courses", icon: "fa-graduation-cap" },
+              { path: "#", label: "Practice", icon: "fa-book" },
+              { path: "#", label: "About Us", icon: "fa-info-circle" },
+              { path: "#", label: "Contact Us", icon: "fa-headphones-simple" },
+            ].map((link, idx) => (
+              <Link
+                key={idx}
+                to={link.path}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-4 px-3 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 transition group text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400"
+              >
+                <i
+                  className={`fa-solid ${link.icon} w-5 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors`}
+                ></i>
+                <span>{link.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        <div className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-6">
+          <button
+            onClick={() => {
+              handleThemeChange()
+              setIsMobileMenuOpen(false)
+            }}
+            className="w-full flex items-center justify-between px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-sm font-bold border border-slate-100 dark:border-slate-800 cursor-pointer"
+          >
+            <span className="text-slate-500">Interface Display</span>
+            <span>{appState.isDarkModeOn ? "☀️ Light" : "🌙 Dark"}</span>
+          </button>
+
+          <Link
+            to="/login"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="flex items-center gap-4 px-3 py-3 font-bold text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition text-sm"
+          >
+            <i className="fa-solid fa-right-to-bracket"></i>
+            <span>Sign in to Account</span>
+          </Link>
         </div>
       </div>
     </>

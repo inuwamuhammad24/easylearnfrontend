@@ -1,533 +1,630 @@
-import React, { useContext, useEffect, useRef } from "react"
-import { Link } from "react-router-dom"
+import React, { useContext, useEffect, useRef, useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { useImmerReducer } from "use-immer"
-import { CSSTransition } from "react-transition-group"
+import { motion, AnimatePresence } from "framer-motion"
 import Axios from "axios"
 import StateContext from "../StateContext"
 import NavigationMenus from "./NavigationMenus"
+import Toast from "./shared/Toast"
+
+const initialState = {
+  username: { value: "", hasErrors: false, message: "" },
+  email: { value: "", hasErrors: false, message: "" },
+  firstName: { value: "", hasErrors: false, message: "" },
+  lastName: { value: "", hasErrors: false, message: "" },
+  password: { value: "", hasErrors: false, message: "" },
+  errorMessage: "",
+  isLoading: false,
+  openSuccessOverlay: false,
+  openErrorOverlay: false,
+}
+
+function reducer(draft, action) {
+  switch (action.type) {
+    case "usernameImmediately":
+      draft.username.hasErrors = false
+      draft.username.message = ""
+      draft.username.value = action.value
+      if (!action.value.trim()) {
+        draft.username.message = "Username cannot be empty"
+        draft.username.hasErrors = true
+      } else if (!/^[a-zA-Z0-9_]+$/.test(action.value.trim())) {
+        draft.username.message =
+          "Only letters, numbers, and underscores are allowed"
+        draft.username.hasErrors = true
+      } else if (action.value.length > 20) {
+        draft.username.message = "Cannot exceed 20 characters"
+        draft.username.hasErrors = true
+      }
+      break
+
+    case "usernameAfterDelay":
+      if (draft.username.value.trim() && draft.username.value.length < 3) {
+        draft.username.message = "Cannot be less than 3 characters"
+        draft.username.hasErrors = true
+      }
+      break
+
+    case "usernameExist":
+      draft.username.message = "This username is already taken"
+      draft.username.hasErrors = true
+      break
+
+    case "emailImmediately":
+      draft.email.hasErrors = false
+      draft.email.message = ""
+      draft.email.value = action.value
+      break
+
+    case "emailAfterDelay":
+      if (!draft.email.value.trim()) {
+        draft.email.message = "Email cannot be empty"
+        draft.email.hasErrors = true
+      } else if (
+        !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/.test(
+          draft.email.value.trim(),
+        )
+      ) {
+        draft.email.message = "Please enter a valid email address"
+        draft.email.hasErrors = true
+      }
+      break
+
+    case "emailExist":
+      draft.email.message = "This email is already registered"
+      draft.email.hasErrors = true
+      break
+
+    case "firstNameImmediately":
+      draft.firstName.hasErrors = false
+      draft.firstName.message = ""
+      draft.firstName.value = action.value
+      if (!action.value.trim()) {
+        draft.firstName.message = "First name cannot be empty"
+        draft.firstName.hasErrors = true
+      } else if (!/^[a-zA-Z]+$/.test(action.value.trim())) {
+        draft.firstName.message =
+          "Only standard alphabetical letters are allowed"
+        draft.firstName.hasErrors = true
+      } else if (action.value.length > 40) {
+        draft.firstName.message = "Cannot exceed 40 characters"
+        draft.firstName.hasErrors = true
+      }
+      break
+
+    case "lastNameImmediately":
+      draft.lastName.hasErrors = false
+      draft.lastName.message = ""
+      draft.lastName.value = action.value
+      if (!action.value.trim()) {
+        draft.lastName.message = "Last name cannot be empty"
+        draft.lastName.hasErrors = true
+      } else if (!/^[a-zA-Z]+$/.test(action.value.trim())) {
+        draft.lastName.message =
+          "Only standard alphabetical letters are allowed"
+        draft.lastName.hasErrors = true
+      } else if (action.value.length > 40) {
+        draft.lastName.message = "Cannot exceed 40 characters"
+        draft.lastName.hasErrors = true
+      }
+      break
+
+    case "passwordImmediately":
+      draft.password.hasErrors = false
+      draft.password.message = ""
+      draft.password.value = action.value
+      if (!action.value) {
+        draft.password.message = "Password cannot be empty"
+        draft.password.hasErrors = true
+      } else if (action.value.length < 8) {
+        draft.password.message = "Password must be at least 8 characters long"
+        draft.password.hasErrors = true
+      }
+      break
+
+    case "startLoading":
+      draft.openSuccessOverlay = false
+      draft.openErrorOverlay = false
+      draft.isLoading = true
+      break
+
+    case "finishLoading":
+      draft.isLoading = false
+      break
+
+    case "clearFields":
+      draft.username.value = ""
+      draft.email.value = ""
+      draft.firstName.value = ""
+      draft.lastName.value = ""
+      draft.password.value = ""
+      break
+
+    case "openSuccessOverlay":
+      draft.openSuccessOverlay = true
+      break
+
+    case "openErrorOverlay":
+      draft.errorMessage = action.message
+      draft.openErrorOverlay = true
+      break
+
+    case "closeOverlay":
+      draft.errorMessage = ""
+      draft.openSuccessOverlay = false
+      draft.openErrorOverlay = false
+      break
+
+    default:
+      break
+  }
+}
 
 function SignUpPage() {
   const appState = useContext(StateContext)
-
-  const username = useRef(null)
-
-  const initialState = {
-    username: { value: "", hasErrors: false, message: "" },
-    email: { value: "", hasErrors: false, message: "" },
-    firstName: { value: "", hasErrors: false, message: "" },
-    lastName: { value: "", hasErrors: false, message: "" },
-    password: { value: "", hasErrors: false, message: "" },
-    errorMessage: "",
-    hasSubmitErrors: false,
-    isLoading: false,
-    openSucessOverlay: false,
-    openErrorOverlay: false,
-  }
-
-  // reducer function
-  function reducer(draft, action) {
-    switch (action.type) {
-      // this validations runs on the username field after every key strocks
-      case "usernameImmediately":
-        draft.username.hasErrors = false
-        draft.username.message = ""
-        draft.username.value = action.value
-        if (action.value != "") {
-          if (!/^[a-zA-Z0-9_]+$/.test(action.value.trim())) {
-            draft.username.message = "Only letters and numbers are allowed"
-            draft.username.hasErrors = true
-          } else if (action.value.length > 20) {
-            draft.username.message = "Cannot exceed 20 chracters"
-            draft.username.hasErrors = true
-          }
-        } else {
-          draft.username.message = "Username cannot be empty"
-          draft.username.hasErrors = true
-        }
-        break
-
-      // this validations runs on the username field after 800 milliseconds
-      case "usernameAfterDelay":
-        if (draft.username.value != "") {
-          if (draft.username.value.length < 3) {
-            draft.username.message = "Cannot be less than 3 characters"
-            draft.username.hasErrors = true
-          }
-        }
-        break
-
-      // this validation runs on the email field after every key strokes
-      case "emailImmediately":
-        draft.email.hasErrors = false
-        draft.email.message = ""
-        draft.email.value = action.value
-        if (draft.email.value.length > 50) {
-        }
-        break
-
-      // this validation runs on the email field after 800 milliseconds
-      case "emailAfterDelay":
-        if (draft.email.value != "") {
-          if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/.test(draft.email.value.trim())) {
-            draft.email.message = "Please use a valid email"
-            draft.email.hasErrors = true
-          }
-        } else {
-          draft.email.message = "email cannot be empty"
-          draft.email.hasErrors = true
-        }
-        break
-
-      // this validation runs on the firstname field after every key stroke
-      case "firstNameImmediately":
-        draft.firstName.hasErrors = false
-        draft.firstName.message = ""
-        draft.firstName.value = action.value
-        if (draft.firstName.value != "") {
-          if (!/^[a-zA-Z_]+$/.test(draft.firstName.value.trim())) {
-            draft.firstName.message = "Only Chracters are allowed"
-            draft.firstName.hasErrors = true
-          }
-          if (draft.firstName.value.length > 40) {
-            draft.firstName.message = "Cannot exceed 40 chracters"
-            draft.firstName.hasErrors = true
-          }
-        } else {
-          draft.firstName.message = "Firstname Cannot be empty"
-          draft.firstName.hasErrors = true
-        }
-        break
-
-      // this validation runs on the lastName field after every key stroke
-      case "lastNameImmediately":
-        draft.lastName.hasErrors = false
-        draft.lastName.message = ""
-        draft.lastName.value = action.value
-        if (draft.lastName.value != "") {
-          if (!/^[a-zA-Z_]+$/.test(draft.lastName.value.trim())) {
-            draft.lastName.message = "Only Chracters are allowed"
-            draft.lastName.hasErrors = true
-          }
-          if (draft.lastName.value.length > 40) {
-            draft.lastName.message = "Cannot exceed 40 chracters"
-            draft.lastName.hasErrors = true
-          }
-        } else {
-          draft.lastName.message = "Lastname cannot be empty"
-          draft.lastName.hasErrors = true
-        }
-        break
-
-      // this validation runs on the password field after every key stroke
-      case "passwordImmediately":
-        draft.password.hasErrors = false
-        draft.password.message = ""
-        draft.password.value = action.value
-        if (draft.password.value != "") {
-          // if (/^[a-zA-Z_]+$/.test(draft.password.value.trim())) {
-          //   draft.password.message = "Please include letters, numbers and chracters"
-          //   draft.password.hasErrors = true
-          // }
-          if (draft.password.value.length < 8) {
-            draft.password.message = "Cannot be less than 8 characters"
-            draft.password.hasErrors = true
-          }
-        } else {
-          draft.password.message = "Password cannot be empty"
-          draft.password.hasErrors = true
-        }
-        break
-
-      case "usernameExist":
-        draft.username.message = "This username already exist"
-        draft.username.hasErrors = true
-        break
-
-      case "emailExist":
-        draft.email.message = "This email already exist"
-        draft.email.hasErrors = true
-        break
-
-      case "loading":
-        draft.isLoading = true
-        break
-
-      case "clearFields":
-        draft.username.value = ""
-        draft.email.value = ""
-        draft.firstName.value = ""
-        draft.lastName.value = ""
-        draft.password.value = ""
-
-      case "finishLoading":
-        draft.isLoading = false
-        break
-
-      case "openSuccessOverlay":
-        draft.openSucessOverlay = true
-        break
-
-      case "openErrorOverlay":
-        draft.errorMessage = action.message
-        draft.openErrorOverlay = true
-        break
-
-      case "closeOverlay":
-        draft.errorMessage = ""
-        draft.openSucessOverlay = false
-        draft.openErrorOverlay = false
-        break
-
-      case "handleSubmit":
-        draft.hasSubmitErrors = true
-        if (draft.username.hasErrors || draft.email.hasError || draft.firstName.hasErrors || draft.lastName.hasErrors || draft.password.hasErrors) {
-          draft.isLoading = false
-          // alert("There is an error somewhere...")
-          console.log("sorry")
-          draft.hasSubmitErrors = true
-          console.log(draft.hasSubmitErrors)
-        } else {
-          draft.hasSubmitErrors = false
-          if (!draft.hasSubmitErrors) {
-            Axios.post(appState.backendURL + "/instructor/signup", {
-              username: draft.username.value,
-              email: draft.email.value,
-              firstName: draft.firstName.value,
-              lastName: draft.lastName.value,
-              password: draft.password.value,
-            })
-              .then(response => {
-                console.log(response.data)
-                if (response.data == "Something went wrong") {
-                  dispatch({ type: "finishLoading" })
-                  dispatch({ type: "openErrorOverlay", message: "Sorry, there is a problem! Make sure you select a unique username and email" })
-                } else if (response.data == "success") {
-                  dispatch({ type: "finishLoading" })
-                  dispatch({ type: "openSuccessOverlay" })
-                  dispatch({ type: "clearFields" })
-                }
-              })
-              .catch(err => {
-                if (err.response) {
-                  dispatch({ type: "finishLoading" })
-                  dispatch({ type: "openErrorOverlay", message: "Sorry, the server response an error" })
-                } else if (err.message) {
-                  dispatch({ type: "finishLoading" })
-                  dispatch({ type: "openErrorOverlay", message: "Sorry there is a network error" })
-                } else {
-                  dispatch({ type: "finishLoading" })
-                  dispatch({ type: "openErrorOverlay", message: "Sorry, there was an error making the request, kindly check your network settings" })
-                }
-              })
-          } else {
-            draft.isLoading = false
-            alert("Something went wrong")
-            console.log(state)
-          }
-          console.log(draft.hasSubmitErrors)
-        }
-    }
-  }
-
+  const navigate = useNavigate()
+  const usernameRef = useRef(null)
+  const [userId, setUserId] = useState(null)
   const [state, dispatch] = useImmerReducer(reducer, initialState)
 
-  // runs once everytime the page loads
   useEffect(() => {
-    username.current.focus()
+    if (usernameRef.current) usernameRef.current.focus()
   }, [])
 
-  // watching for changes in the username field and calling after delay function
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      if (state.username.value != "") {
-        dispatch({ type: "usernameAfterDelay" })
-        Axios.post(appState.backendURL + "/instructor/doesUsernameExist", { username: state.username.value })
-          .then(response => {
-            if (response.data) dispatch({ type: "usernameExist" })
-          })
-          .catch(err => {
-            if (err.message) {
-              dispatch({ type: "openErrorOverlay", message: "Something went wrong, Please try again later" })
-              console.log(err.message)
-            } else {
-              dispatch({ type: "openErrorOverlay", message: "Something went wrong, Please try again later" })
-              console.log("The request could not be made")
-            }
-          })
-      }
-    }, 800)
-    return () => clearTimeout(delay)
-  }, [state.username.value])
-
-  // watching for changes in the email field and calling after delay
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      if (state.email.value != "") {
-        dispatch({ type: "emailAfterDelay" })
-        Axios.post(appState.backendURL + "/instructor/doesEmailnameExist", { email: state.email.value })
-          .then(response => {
-            dispatch({ type: "emailExist" })
-          })
-          .catch(err => {
-            if (err.message) {
-              dispatch({ type: "openErrorOverlay", message: "Something went wrong, Please try again later" })
-              console.log(err.message)
-            } else {
-              dispatch({ type: "openErrorOverlay", message: "Something went wrong, Please try again later" })
-              console.log("The request could not be made")
-            }
-          })
-      }
-    }, 800)
-    return () => clearTimeout(delay)
-  }, [state.email.value])
-
-  function handleFocus(e) {
-    e.target.style.border = "1px solid blue"
-  }
-
-  function handleBlur(e, field) {
-    switch (field) {
-      case "username":
-        !state.username.hasErrors && e.target.value != "" ? (e.target.style.border = "1px solid #4CAF50") : state.username.hasErrors ? (e.target.style.border = "1px solid red") : (e.target.style.border = "")
-        break
-      case "email":
-        !state.email.hasErrors && e.target.value != "" ? (e.target.style.border = "1px solid #4CAF50") : state.email.hasErrors ? (e.target.style.border = "1px solid red") : (e.target.style.border = "")
-        break
-      case "firstName":
-        !state.firstName.hasErrors && e.target.value != "" ? (e.target.style.border = "1px solid #4CAF50") : state.firstName.hasErrors ? (e.target.style.border = "1px solid red") : (e.target.style.border = "")
-        break
-      case "lastName":
-        !state.lastName.hasErrors && e.target.value != "" ? (e.target.style.border = "1px solid #4CAF50") : state.lastName.hasErrors ? (e.target.style.border = "1px solid red") : (e.target.style.border = "")
-        break
-      case "password":
-        !state.password.hasErrors && e.target.value != "" ? (e.target.style.border = "1px solid #4CAF50") : state.password.hasErrors ? (e.target.style.border = "1px solid red") : (e.target.style.border = "")
-        break
+  // Manage automatic post-success route redirection on close
+  const handleToastClose = () => {
+    if (state.openSuccessOverlay) {
+      dispatch({ type: "closeOverlay" })
+      navigate(`/instructor/${userId}/dashboard`)
+    } else {
+      dispatch({ type: "closeOverlay" })
     }
   }
 
-  function closeOverlay() {
-    dispatch({ type: "finishLoadin" })
-    dispatch({ type: "closeOverlay" })
+  // Remote dynamic debounce field checks
+  useEffect(() => {
+    if (!state.username.value.trim()) return
+    const delay = setTimeout(() => {
+      dispatch({ type: "usernameAfterDelay" })
+      Axios.post(appState.backendURL + "/user/doesUsernameExist", {
+        username: state.username.value,
+      })
+        .then(response => {
+          if (response.data) dispatch({ type: "usernameExist" })
+        })
+        .catch(() => console.log("Username sync mapping query failure."))
+    }, 800)
+    return () => clearTimeout(delay)
+  }, [state.username.value, appState.backendURL, dispatch])
+
+  useEffect(() => {
+    if (!state.email.value.trim()) return
+    const delay = setTimeout(() => {
+      dispatch({ type: "emailAfterDelay" })
+      Axios.post(appState.backendURL + "/user/doesEmailnameExist", {
+        email: state.email.value,
+      })
+        .then(response => {
+          if (response.data) dispatch({ type: "emailExist" })
+        })
+        .catch(() => console.log("Email sync mapping query failure."))
+    }, 800)
+    return () => clearTimeout(delay)
+  }, [state.email.value, appState.backendURL, dispatch])
+
+  const handleSubmit = async e => {
+    e.preventDefault()
+
+    dispatch({ type: "usernameImmediately", value: state.username.value })
+    dispatch({ type: "emailAfterDelay" })
+    dispatch({ type: "firstNameImmediately", value: state.firstName.value })
+    dispatch({ type: "lastNameImmediately", value: state.lastName.value })
+    dispatch({ type: "passwordImmediately", value: state.password.value })
+
+    if (
+      state.username.hasErrors ||
+      state.email.hasErrors ||
+      state.firstName.hasErrors ||
+      state.lastName.hasErrors ||
+      state.password.hasErrors ||
+      !state.username.value ||
+      !state.email.value ||
+      !state.firstName.value ||
+      !state.lastName.value ||
+      !state.password.value
+    )
+      return
+
+    dispatch({ type: "startLoading" })
+
+    try {
+      const response = await Axios.post(
+        appState.backendURL + "/user/register",
+        {
+          username: state.username.value,
+          email: state.email.value,
+          firstName: state.firstName.value,
+          lastName: state.lastName.value,
+          password: state.password.value,
+        },
+      )
+
+      dispatch({ type: "finishLoading" })
+
+      if (response.data.status === "success") {
+        setUserId(response.data.user.id)
+        dispatch({ type: "openSuccessOverlay" })
+        dispatch({ type: "clearFields" })
+      } else {
+        dispatch({
+          type: "openErrorOverlay",
+          message:
+            "Registration parameters rejected. Verify fields match unique entries.",
+        })
+      }
+    } catch (err) {
+      dispatch({ type: "finishLoading" })
+      const errorMsg = err.response
+        ? "The server encountered an issue processing registration metadata."
+        : "Network response timeout. Check active connection link lines."
+      dispatch({ type: "openErrorOverlay", message: errorMsg })
+    }
+  }
+
+  const getInputStyles = fieldState => {
+    const base =
+      "w-full px-4 py-3 rounded-xl border text-sm transition-all duration-200 outline-none "
+    if (fieldState.hasErrors) {
+      return (
+        base +
+        "border-rose-500 bg-rose-500/5 text-rose-500 focus:ring-1 focus:ring-rose-400"
+      )
+    }
+    if (fieldState.value && !fieldState.hasErrors) {
+      return (
+        base +
+        "border-emerald-500 bg-emerald-500/5 focus:ring-1 focus:ring-emerald-400 dark:text-slate-200"
+      )
+    }
+    return (
+      base +
+      (appState.isDarkModeOn
+        ? "bg-slate-950 border-slate-800 text-white focus:border-blue-500"
+        : "bg-slate-50 border-slate-200 text-slate-800 focus:border-blue-500")
+    )
+  }
+
+  const errorAnimationVariants = {
+    initial: { opacity: 0, y: -6 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 300, damping: 20 },
+    },
+    exit: { opacity: 0, y: -4, transition: { duration: 0.15 } },
   }
 
   return (
-    <>
-      {/* <NavigationMenus /> */}
-      <CSSTransition in={state.openSucessOverlay} timeout={300} classNames={"openOver"} unmountOnExit>
-        <div className="Overlay-container">
-          <div className="Overlay-inner">
-            <i style={{ display: "block" }} className="fa-solid fa-xmark close-modal" onClick={closeOverlay}></i>
-            <div className="alert-container">
-              <div className="alert-head">
-                <div className="svg-cont">
-                  <i class="fa-solid fa-check"></i>
-                </div>
-                <h1>Success</h1>
-                <p>Your account has been created successfully</p>
-                <Link style={{ background: "#6c63ff" }} to="/login">
-                  Login
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CSSTransition>
-
-      <CSSTransition in={state.openErrorOverlay} timeout={300} classNames={"openOver"} unmountOnExit>
-        <div className="Overlay-container">
-          <div className="Overlay-inner">
-            <i style={{ display: "block" }} className="fa-solid fa-xmark close-modal" onClick={closeOverlay}></i>
-            <div className="alert-container">
-              <div className="alert-head">
-                <div className="svg-cont svg-cont-1">
-                  <i className="fas fa-exclamation-triangle"></i>
-                </div>
-                <h1>Oooops!</h1>
-                <p>{state.errorMessage}</p>
-                <a onClick={closeOverlay} style={{ background: "#fc4a1a" }} href="#">
-                  Try Again
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CSSTransition>
+    <div
+      className={`min-h-screen font-sans antialiased transition-colors duration-300 relative overflow-x-hidden ${
+        appState.isDarkModeOn
+          ? "bg-slate-950 text-slate-100"
+          : "bg-slate-50 text-slate-800"
+      }`}
+    >
       <NavigationMenus />
 
-      <div className="signup-instructor-container" style={appState.isDarkModeOn ? { background: "#1b1b1b" } : {}}>
-        <div className="signup-instructor-container-inner">
-          <div className="signup-instructor-sidebar1">
-            <h2>New Here?</h2>
-            <p className="text-font">Register your account with us with a few clicks and get the most out of easylearn</p>
-            <hr />
-            <h2>Student's Account</h2>
-            <p className="text-font">You can use your easylearn account to enroll in our free course and track your progress. You can take quiz, exercises and also write exams</p>
-            <hr />
-            <h2>Instructor's Account</h2>
-            <p className="text-font">You can use your easylearn account to create a course and an article. You can also do lots</p>
-          </div>
-          <div className="signup-instructor-sidebar2" style={appState.isDarkModeOn ? { background: "rgb(46, 50, 51)", border: "1px solid #000", boxShadow: "none" } : {}}>
-            <div className="signup-instructor-sidebar2-header">
-              <h2 style={appState.isDarkModeOn ? { color: "#fff" } : {}}>Get Started</h2>
-              <p style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}}>Create an account for free. It only takes a few steps</p>
+      {/* REUSABLE FLOATING TOAST LINK MODULE */}
+      <Toast
+        isVisible={state.openSuccessOverlay || state.openErrorOverlay}
+        type={state.openSuccessOverlay ? "success" : "error"}
+        message={
+          state.openSuccessOverlay
+            ? "Your platform profile keys have been indexed successfully. Redirecting..."
+            : state.errorMessage
+        }
+        onClose={handleToastClose}
+      />
+
+      <main className="max-w-6xl mx-auto px-6 py-16 min-h-[calc(100vh-80px)] flex items-center justify-center">
+        <div className="grid md:grid-cols-12 gap-8 items-stretch w-full">
+          {/* LEFT COLUMN: BRAND DETAILS */}
+          <div className="md:col-span-5 flex flex-col justify-center space-y-8 pr-4">
+            <div className="space-y-2">
+              <span className="text-[10px] font-black tracking-widest uppercase bg-blue-500/10 text-blue-500 px-2.5 py-1 rounded-md">
+                Join easylearn
+              </span>
+              <h2
+                className={`text-3xl font-black tracking-tight ${appState.isDarkModeOn ? "text-white" : "text-slate-900"}`}
+              >
+                Begin Your Journey
+              </h2>
+              <p className="text-sm text-slate-400 leading-relaxed font-medium">
+                Create a single unified credential key profile to access our
+                entire integrated platform spectrum.
+              </p>
             </div>
-            <form
-              className="Form-container"
-              onSubmit={async e => {
-                e.preventDefault()
-                dispatch({ type: "loading" })
-                dispatch({ type: "usernameImmediately", value: state.username.value })
-                dispatch({ type: "usenameAfterDelay" })
-                dispatch({ type: "emailImmediately", value: state.email.value })
-                dispatch({ type: "emailAfterDelay" })
-                dispatch({ type: "firstNameImmediately", value: state.firstName.value })
-                dispatch({ type: "lastNameImmediately", value: state.lastName.value })
-                dispatch({ type: "passwordImmediately", value: state.password.value })
-                dispatch({ type: "handleSubmit" })
-              }}
-              method="POST"
-            >
-              <div className="g-signin2" data-onsuccess="onSignIn"></div>
-              <label htmlFor="username">
-                <CSSTransition in={state.username.hasErrors} timeout={300} classNames="error-message" unmountOnExit>
-                  <p style={appState.isDarkModeOn ? { color: "#ccc" } : {}} className="error-signup">
-                    {state.username.message}
-                    <i style={appState.isDarkModeOn ? { color: "yellow" } : {}} className="fa-solid fa-triangle-exclamation"></i>
-                  </p>
-                </CSSTransition>
-                {/* username input */}
+
+            <div className="space-y-6 divide-y divide-slate-100 dark:divide-slate-800/60 text-xs sm:text-sm font-medium">
+              <div className="space-y-1.5">
+                <h3
+                  className={`font-bold ${appState.isDarkModeOn ? "text-blue-400" : "text-blue-600"}`}
+                >
+                  Student Track Workspace
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Enroll in premium curated content blocks, monitor lesson
+                  progress vectors, and participate in peer-led focus groups.
+                </p>
+              </div>
+              <div className="space-y-1.5 pt-4">
+                <h3
+                  className={`font-bold ${appState.isDarkModeOn ? "text-emerald-400" : "text-emerald-600"}`}
+                >
+                  Instructor Studio Suite
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Publish technical articles, build modular video sequences, and
+                  track learner onboarding metrics through our studio dashboard
+                  panels.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: REGISTRATION INPUT INTERFACE BOX */}
+          <div
+            className={`md:col-span-7 border p-6 sm:p-10 rounded-3xl flex flex-col justify-center transition-all ${
+              appState.isDarkModeOn
+                ? "bg-slate-900 border-slate-800/80 shadow-xl shadow-black/40"
+                : "bg-white border-slate-100 shadow-xl shadow-slate-200/50"
+            }`}
+          >
+            <div className="mb-6">
+              <h2
+                className={`text-2xl font-black tracking-tight ${appState.isDarkModeOn ? "text-white" : "text-slate-900"}`}
+              >
+                Get Started
+              </h2>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                Register a free account profile in just a few seconds.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Username Input Input Block */}
+              <div className="space-y-1">
+                <div className="h-5 flex items-center justify-between px-0.5 text-[11px] font-bold text-rose-500 overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    {state.username.hasErrors ? (
+                      <motion.span
+                        key="user-err"
+                        variants={errorAnimationVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                      >
+                        ⚠️ {state.username.message}
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="user-lbl"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-slate-400"
+                      >
+                        Unique Username
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
                 <input
-                  ref={username}
-                  style={{ border: state.username.hasErrors ? "1px solid #dc3545" : {} }}
-                  onBlur={e => handleBlur(e, "username")}
-                  onFocus={handleFocus}
-                  onChange={e => {
-                    handleBlur(e, "username")
-                    dispatch({ type: "usernameImmediately", value: e.target.value })
-                  }}
-                  className="main-input"
+                  ref={usernameRef}
                   type="text"
-                  name="username"
-                  autoComplete="off"
                   placeholder="Username"
+                  value={state.username.value}
+                  onChange={e =>
+                    dispatch({
+                      type: "usernameImmediately",
+                      value: e.target.value,
+                    })
+                  }
+                  className={getInputStyles(state.username)}
+                  autoComplete="off"
                 />
-                <div className="error-signup"></div>
-              </label>
+              </div>
 
-              <label htmlFor="email">
-                <CSSTransition in={state.email.hasErrors} timeout={300} classNames="error-message" unmountOnExit>
-                  <p className="error-signup">
-                    {state.email.message}
-                    <i className="fa-solid fa-triangle-exclamation"></i>
-                  </p>
-                </CSSTransition>
-                {/* email input */}
+              {/* Email Input Input Block */}
+              <div className="space-y-1">
+                <div className="h-5 flex items-center justify-between px-0.5 text-[11px] font-bold text-rose-500 overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    {state.email.hasErrors ? (
+                      <motion.span
+                        key="email-err"
+                        variants={errorAnimationVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                      >
+                        ⚠️ {state.email.message}
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="email-lbl"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-slate-400"
+                      >
+                        Primary Email Address
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
                 <input
-                  style={{ border: state.email.hasErrors ? "1px solid #dc3545" : {} }}
-                  onBlur={e => handleBlur(e, "email")}
-                  onFocus={handleFocus}
-                  onChange={e => {
-                    handleBlur(e, "email")
-                    dispatch({ type: "emailImmediately", value: e.target.value })
-                  }}
                   type="email"
-                  name="email"
-                  className="main-input email"
+                  placeholder="Email Address"
+                  value={state.email.value}
+                  onChange={e =>
+                    dispatch({
+                      type: "emailImmediately",
+                      value: e.target.value,
+                    })
+                  }
+                  className={getInputStyles(state.email)}
                   autoComplete="off"
-                  placeholder="Email"
                 />
-                <div className="error-signup"></div>
-              </label>
+              </div>
 
-              <label htmlFor="firstname">
-                <CSSTransition in={state.firstName.hasErrors} timeout={300} classNames="error-message" unmountOnExit>
-                  <p className="error-signup">
-                    {state.firstName.message}
-                    <i className="fa-solid fa-triangle-exclamation"></i>
-                  </p>
-                </CSSTransition>
+              {/* First & Last Name Split row input container */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="h-5 flex items-center justify-between px-0.5 text-[11px] font-bold text-rose-500 overflow-hidden">
+                    <AnimatePresence mode="wait">
+                      {state.firstName.hasErrors ? (
+                        <motion.span
+                          key="fn-err"
+                          variants={errorAnimationVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                        >
+                          ⚠️ {state.firstName.message}
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="fn-lbl"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="text-slate-400"
+                        >
+                          First Name
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="First Name"
+                    value={state.firstName.value}
+                    onChange={e =>
+                      dispatch({
+                        type: "firstNameImmediately",
+                        value: e.target.value,
+                      })
+                    }
+                    className={getInputStyles(state.firstName)}
+                    autoComplete="off"
+                  />
+                </div>
 
-                {/* fistname input */}
+                <div className="space-y-1">
+                  <div className="h-5 flex items-center justify-between px-0.5 text-[11px] font-bold text-rose-500 overflow-hidden">
+                    <AnimatePresence mode="wait">
+                      {state.lastName.hasErrors ? (
+                        <motion.span
+                          key="ln-err"
+                          variants={errorAnimationVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                        >
+                          ⚠️ {state.lastName.message}
+                        </motion.span>
+                      ) : (
+                        <motion.span
+                          key="ln-lbl"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="text-slate-400"
+                        >
+                          Last Name
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Last Name"
+                    value={state.lastName.value}
+                    onChange={e =>
+                      dispatch({
+                        type: "lastNameImmediately",
+                        value: e.target.value,
+                      })
+                    }
+                    className={getInputStyles(state.lastName)}
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input Input Block */}
+              <div className="space-y-1">
+                <div className="h-5 flex items-center justify-between px-0.5 text-[11px] font-bold text-rose-500 overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    {state.password.hasErrors ? (
+                      <motion.span
+                        key="pass-err"
+                        variants={errorAnimationVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                      >
+                        ⚠️ {state.password.message}
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="pass-lbl"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-slate-400"
+                      >
+                        Secure Password (Min 8 chars)
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
                 <input
-                  style={{ border: state.firstName.hasErrors ? "1px solid #dc3545" : {} }}
-                  onBlur={e => handleBlur(e, "firstName")}
-                  onFocus={handleFocus}
-                  onChange={e => {
-                    handleBlur(e, "firstName")
-                    dispatch({ type: "firstNameImmediately", value: e.target.value })
-                  }}
-                  type="text"
-                  name="firstname"
-                  className="main-input firstName"
-                  autoComplete="off"
-                  placeholder="First Name"
-                />
-                <div className="error-signup"></div>
-              </label>
-
-              <label htmlFor="lastname">
-                <CSSTransition in={state.lastName.hasErrors} timeout={300} classNames="error-message" unmountOnExit>
-                  <p className="error-signup">
-                    {state.lastName.message}
-                    <i className="fa-solid fa-triangle-exclamation"></i>
-                  </p>
-                </CSSTransition>
-                {/* lastname input */}
-                <input
-                  style={{ border: state.lastName.hasErrors ? "1px solid #dc3545" : {} }}
-                  onBlur={e => handleBlur(e, "lastName")}
-                  onFocus={handleFocus}
-                  onChange={e => {
-                    handleBlur(e, "lastName")
-                    dispatch({ type: "lastNameImmediately", value: e.target.value })
-                  }}
-                  type="text"
-                  name="lastname"
-                  className="main-input lastName"
-                  autoComplete="off"
-                  placeholder="Last Name"
-                />
-                <div className="error-signup"></div>
-              </label>
-
-              <label htmlFor="password">
-                <CSSTransition in={state.password.hasErrors} timeout={300} classNames="error-message" unmountOnExit>
-                  <p className="error-signup">
-                    {state.password.message}
-                    <i className="fa-solid fa-triangle-exclamation"></i>
-                  </p>
-                </CSSTransition>
-                {/* password input */}
-                <input
-                  style={{ border: state.password.hasErrors ? "1px solid #dc3545" : {} }}
-                  onBlur={e => handleBlur(e, "password")}
-                  onFocus={handleFocus}
-                  onChange={e => {
-                    handleBlur(e, "password")
-                    dispatch({ type: "passwordImmediately", value: e.target.value })
-                  }}
-                  className="main-input"
                   type="password"
-                  name="password"
+                  placeholder="••••••••"
+                  value={state.password.value}
+                  onChange={e =>
+                    dispatch({
+                      type: "passwordImmediately",
+                      value: e.target.value,
+                    })
+                  }
+                  className={getInputStyles(state.password)}
                   autoComplete="off"
-                  placeholder="Password"
                 />
-                <div className="error-signup"></div>
-              </label>
+              </div>
 
-              <button className="form-button button-style">
-                <div className="form-btn-text">{state.isLoading ? <div className="loading-signup"></div> : <p>CREATE AN ACCOUNT</p>}</div>
+              <button
+                type="submit"
+                disabled={state.isLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3.5 px-6 rounded-xl shadow-lg shadow-blue-600/10 active:scale-[0.99] transition-all duration-150 text-xs sm:text-sm tracking-wider cursor-pointer disabled:opacity-50 mt-4 flex justify-center items-center h-12"
+              >
+                {state.isLoading ? (
+                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                ) : (
+                  "CREATE AN ACCOUNT"
+                )}
               </button>
             </form>
 
-            <p style={appState.isDarkModeOn ? { color: "#f1f1f1" } : {}} className="signup-instructor-haveAccount">
-              Already have an account? <Link to="/login">Login</Link>
+            <p className="text-center text-xs text-slate-400 font-semibold mt-6">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="text-blue-500 hover:underline font-bold"
+              >
+                Sign In
+              </Link>
             </p>
           </div>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   )
 }
 

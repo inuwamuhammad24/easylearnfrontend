@@ -7,7 +7,7 @@ function CourseCategories() {
         <h1 className="heading-font">Browse by Category</h1>
       </div>
       <div className="category-flex-container">
-        <div className="category-flex-box">
+        <div className="category-flex-box shadow rounded-md">
           <a href="#">
             <div className="category-icon-cont">
               <i class="fa-solid fa-computer"></i>
@@ -22,7 +22,7 @@ function CourseCategories() {
             </div>
           </a>
         </div>
-        <div className="category-flex-box">
+        <div className="category-flex-box shadow rounded-md">
           <a href="#">
             <div className="category-icon-cont">
               <i class="fa-solid fa-computer"></i>
@@ -37,7 +37,7 @@ function CourseCategories() {
             </div>
           </a>
         </div>
-        <div className="category-flex-box">
+        <div className="category-flex-box shadow rounded-md">
           <a href="#">
             <div className="category-icon-cont">
               <i class="fa-solid fa-code"></i>
@@ -52,7 +52,7 @@ function CourseCategories() {
             </div>
           </a>
         </div>
-        <div className="category-flex-box">
+        <div className="category-flex-box shadow rounded-md">
           <a href="#">
             <div className="category-icon-cont">
               <i class="fa-solid fa-computer"></i>
@@ -62,7 +62,7 @@ function CourseCategories() {
             </div>
             <div className="category-text">
               <p className="text-font">
-                25 Courses<i class="fa-solid fa-arrow-right"></i>
+                More...<i class="fa-solid fa-arrow-right z-2 bg-[#f1f1f1]"></i>
               </p>
             </div>
           </a>

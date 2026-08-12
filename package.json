@@ -16,6 +16,7 @@
     "axios": "^1.4.0",
     "babel-loader": "^9.0.1",
     "css-loader": "^7.1.2",
+    "framer-motion": "^12.40.0",
     "immer": "^10.0.2",
     "lucide-react": "^0.543.0",
     "postcss": "^8.5.6",

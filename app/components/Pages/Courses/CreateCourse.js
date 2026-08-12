@@ -1,7 +1,7 @@
 import React from "react"
 
-import NavigationMenus from "../NavigationMenus"
-import EditorConfig from "../EditorConfig"
+import NavigationMenus from "../../NavigationMenus"
+import EditorConfig from "../../EditorConfig"
 
 function CreateCourse() {
   function handleSubmit(e) {
@@ -19,7 +19,12 @@ function CreateCourse() {
           <div class="create-topic-grid">
             <div>
               <label for="title">Title*</label>
-              <input type="text" name="title" id="title" placeholder="e.g Mathematics" />
+              <input
+                type="text"
+                name="title"
+                id="title"
+                placeholder="e.g Mathematics"
+              />
             </div>
 
             <div class="new-course-container">
